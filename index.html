@@ -327,12 +327,13 @@ function renderLeads() {
             <th>Température</th>
             <th>Intérêt</th>
             <th>Date souhaitée</th>
+            <th>Occasion</th>
             <th>Messages</th>
             <th>Dernier contact</th>
           </tr>
         </thead>
         <tbody>
-          ${filtered.length === 0 ? '<tr><td colspan="7" class="empty-state">Aucun lead trouvé</td></tr>' :
+          ${filtered.length === 0 ? '<tr><td colspan="8" class="empty-state">Aucun lead trouvé</td></tr>' :
             filtered.map(l => `
               <tr onclick="openDetail('${l.id}')">
                 <td>
@@ -346,6 +347,7 @@ function renderLeads() {
                 <td><span class="temp-indicator"><span class="temp-dot ${l.temperature}"></span>${l.temperature==='chaud'?'Chaud':l.temperature==='tiede'?'Tiède':'Froid'}</span></td>
                 <td>${formatInteret(l.type_interet)}</td>
                 <td style="font-size:12px;color:var(--text-secondary)">${l.date_souhaitee || '—'}</td>
+                <td style="font-size:12px;color:var(--text-secondary)">${l.occasion || '—'}</td>
                 <td><span class="msg-count">${l.nombre_messages}</span></td>
                 <td><span class="time-ago">${timeAgo(l.derniere_interaction)}</span></td>
               </tr>
