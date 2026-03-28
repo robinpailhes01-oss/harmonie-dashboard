@@ -180,10 +180,6 @@ textarea.field-input { resize:vertical; min-height:60px; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Leads & CRM
       </a>
-      <a href="#" onclick="setPage('reservations')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Réservations
-      </a>
       <a href="#" onclick="setPage('finances')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Finances
@@ -212,10 +208,11 @@ textarea.field-input { resize:vertical; min-height:60px; }
 const SUPA_URL = 'https://utyfpmjhtfoxsxncfoxe.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0eWZwbWpodGZveHN4bmNmb3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzgzMTUsImV4cCI6MjA4OTYxNDMxNX0.OGLR8d0GOZVMM48WlhUYrGsnthaaNNxBGPUHpJoSong';
 
-let leads = [];
+let leads = [], revenus = [], depenses = [];
 let filterStatut = 'all';
 let filterTemp = 'all';
 let searchTerm = '';
+let currentPage = 'overview';
 
 async function supaGet(path) {
   const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }});
@@ -248,9 +245,61 @@ function statutLabel(s) {
   return { nouveau:'Nouveau', en_conversation:'En conversation', qualifie:'Qualifié', reserve:'Réservé', perdu:'Perdu' }[s] || s;
 }
 
-async function loadLeads() {
+function fmtMoney(n){return parseFloat(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+'€';}
+function fmtDate(d){return d?new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'—';}
+
+async function loadAll() {
   leads = await supaGet('leads?order=derniere_interaction.desc');
-  renderLeads();
+  revenus = await supaGet('revenus?order=date.desc');
+  depenses = await supaGet('depenses?order=date.desc');
+  render();
+}
+function render(){if(currentPage==='overview')renderOverview();else if(currentPage==='leads')renderLeads();else if(currentPage==='finances')renderFinances();}
+
+function renderOverview(){
+const lc=leads.filter(l=>l.temperature==='chaud').length,lt=leads.filter(l=>l.temperature==='tiede').length;
+const rT=revenus.reduce((s,r)=>s+parseFloat(r.montant||0),0),dT=depenses.reduce((s,r)=>s+parseFloat(r.montant||0),0),p=rT-dT;
+document.getElementById('mainContent').innerHTML=`
+<div class="page-header fade-in"><div><div class="page-title">Vue d'ensemble</div><div class="page-subtitle">Tableau de bord Harmonie Yacht</div></div>
+<div class="header-actions"><div class="status-pill"><div class="status-dot"></div>Léa active</div><button class="btn-refresh" onclick="loadAll()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button></div></div>
+<div class="kpi-grid fade-in">
+<div class="kpi-card"><div class="kpi-label">Total Leads</div><div class="kpi-value">${leads.length}</div></div>
+<div class="kpi-card"><div class="kpi-label">Leads Chauds</div><div class="kpi-value" style="color:var(--red,#EF4444)">${lc}</div></div>
+<div class="kpi-card"><div class="kpi-label">Leads Tièdes</div><div class="kpi-value" style="color:var(--gold,#C9A96E)">${lt}</div></div>
+<div class="kpi-card"><div class="kpi-label">Revenus</div><div class="kpi-value" style="color:#22C55E">${fmtMoney(rT)}</div></div>
+<div class="kpi-card"><div class="kpi-label">Dépenses</div><div class="kpi-value" style="color:#EF4444">${fmtMoney(dT)}</div></div>
+<div class="kpi-card"><div class="kpi-label">Résultat</div><div class="kpi-value" style="color:${p>=0?'#22C55E':'#EF4444'}">${p>=0?'+':''}${fmtMoney(p)}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px" class="fade-in">
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow)"><h3 style="font-family:var(--serif);font-size:20px;font-weight:400;color:var(--navy);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">Derniers Leads</h3>
+${leads.slice(0,5).map(l=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><span class="temp-dot ${l.temperature}" style="flex-shrink:0"></span><div style="flex:1;font-size:13px"><strong>${l.prenom||'—'}</strong> @${l.instagram_username}${l.type_interet?' · '+formatInteret(l.type_interet):''}</div><span class="time-ago">${timeAgo(l.derniere_interaction)}</span></div>`).join('')}
+</div>
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow)"><h3 style="font-family:var(--serif);font-size:20px;font-weight:400;color:var(--navy);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">Transactions Récentes</h3>
+${[...revenus.map(r=>({...r,_t:'r'})),...depenses.map(d=>({...d,_t:'d'}))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5).map(t=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:${t._t==='r'?'#22C55E':'#EF4444'};flex-shrink:0"></span><div style="flex:1;font-size:13px">${t._t==='r'?'📈':'📉'} ${fmtMoney(t.montant)} — ${t.description||t.categorie||'—'}</div><span class="time-ago">${fmtDate(t.date)}</span></div>`).join('')||'<div class="empty-state">Aucune transaction</div>'}
+</div>
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);grid-column:1/-1"><h3 style="font-family:var(--serif);font-size:20px;font-weight:400;color:var(--navy);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">Équipe IA</h3>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+<div style="padding:16px;border-radius:10px;background:var(--bg)"><div style="font-size:24px;margin-bottom:8px">💬</div><div style="font-weight:500">Léa</div><div style="font-size:11px;color:var(--text-muted)">Agent Commercial Instagram</div><div style="margin-top:8px"><span class="status-pill"><span class="status-dot"></span>Active</span></div></div>
+<div style="padding:16px;border-radius:10px;background:var(--bg)"><div style="font-size:24px;margin-bottom:8px">📊</div><div style="font-weight:500">Analyste Financier</div><div style="font-size:11px;color:var(--text-muted)">Bot Telegram Finance</div><div style="margin-top:8px"><span class="status-pill"><span class="status-dot"></span>Actif</span></div></div>
+<div style="padding:16px;border-radius:10px;background:var(--bg)"><div style="font-size:24px;margin-bottom:8px">🎯</div><div style="font-weight:500">Directeur</div><div style="font-size:11px;color:var(--text-muted)">Rapport Hebdomadaire</div><div style="margin-top:8px"><span class="status-pill"><span class="status-dot"></span>Actif</span></div></div>
+</div></div>
+</div>`;
+}
+
+function renderFinances(){
+const rT=revenus.reduce((s,r)=>s+parseFloat(r.montant||0),0),dT=depenses.reduce((s,r)=>s+parseFloat(r.montant||0),0),p=rT-dT;
+const all=[...revenus.map(r=>({...r,_t:'r'})),...depenses.map(d=>({...d,_t:'d'}))].sort((a,b)=>new Date(b.date||b.created_at)-new Date(a.date||a.created_at));
+document.getElementById('mainContent').innerHTML=`
+<div class="page-header fade-in"><div><div class="page-title">Finances</div><div class="page-subtitle">${revenus.length} revenus · ${depenses.length} dépenses</div></div><button class="btn-refresh" onclick="loadAll()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button></div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:32px" class="fade-in">
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);text-align:center"><div style="font-family:var(--serif);font-size:42px;font-weight:300;color:#22C55E">${fmtMoney(rT)}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:8px">Revenus</div></div>
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);text-align:center"><div style="font-family:var(--serif);font-size:42px;font-weight:300;color:#EF4444">${fmtMoney(dT)}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:8px">Dépenses</div></div>
+<div style="background:var(--surface);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);text-align:center"><div style="font-family:var(--serif);font-size:42px;font-weight:300;color:${p>=0?'#22C55E':'#EF4444'}">${p>=0?'+':''}${fmtMoney(p)}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:8px">Résultat Net</div></div>
+</div>
+<div class="table-container fade-in"><table><thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Catégorie</th><th>Description</th><th>Détail</th></tr></thead><tbody>
+${all.length===0?'<tr><td colspan="6" class="empty-state">Aucune transaction — envoie tes dépenses au bot Analyste Financier sur Telegram</td></tr>':
+all.map(t=>`<tr><td style="font-size:12px">${fmtDate(t.date)}</td><td>${t._t==='r'?'<span class="badge" style="background:rgba(34,197,94,.1);color:#16a34a">📈 Revenu</span>':'<span class="badge" style="background:rgba(239,68,68,.1);color:#dc2626">📉 Dépense</span>'}</td><td style="font-weight:600;color:${t._t==='r'?'#22C55E':'#EF4444'};">${t._t==='r'?'+':'-'}${fmtMoney(t.montant)}</td><td style="font-size:12px">${t.categorie||t.formule||t.type_revenu||'—'}</td><td style="font-size:12px;color:var(--text-secondary)">${t.description||'—'}</td><td style="font-size:11px;color:var(--text-muted)">${t.fournisseur||t.client_nom||'—'}</td></tr>`).join('')}
+</tbody></table></div>`;
 }
 
 function getKpis() {
@@ -306,16 +355,16 @@ function renderLeads() {
       <div>
         <div class="filter-pills">
           ${['all','nouveau','en_conversation','qualifie','reserve','perdu'].map(s=>
-            `<button class="filter-pill ${filterStatut===s?'active':''}" onclick="filterStatut='${s}';renderLeads()">${s==='all'?`Tous (${k.total})`:statutLabel(s)+` (${leads.filter(l=>l.statut===s).length})`}</button>`
+            `<button class="filter-pill ${filterStatut===s?'active':''}" onclick="filterStatut='${s}';render()">${s==='all'?`Tous (${k.total})`:statutLabel(s)+` (${leads.filter(l=>l.statut===s).length})`}</button>`
           ).join('')}
         </div>
         <div class="temp-filters" style="margin-top:8px">
           ${['all','chaud','tiede','froid'].map(t=>
-            `<button class="temp-pill ${filterTemp===t?'active':''}" onclick="filterTemp='${t}';renderLeads()">${t==='all'?'Toutes temp.':t==='chaud'?'Chaud':t==='tiede'?'Tiède':'Froid'}</button>`
+            `<button class="temp-pill ${filterTemp===t?'active':''}" onclick="filterTemp='${t}';render()">${t==='all'?'Toutes temp.':t==='chaud'?'Chaud':t==='tiede'?'Tiède':'Froid'}</button>`
           ).join('')}
         </div>
       </div>
-      <input class="search-input" type="text" placeholder="Rechercher un lead..." value="${searchTerm}" oninput="searchTerm=this.value;renderLeads()">
+      <input class="search-input" type="text" placeholder="Rechercher un lead..." value="${searchTerm}" oninput="searchTerm=this.value;render()">
     </div>
 
     <div class="table-container fade-in fade-in-3">
@@ -453,20 +502,22 @@ async function saveDetail(id) {
   await supaPatch('leads', id, data);
   const idx = leads.findIndex(l=>l.id===id);
   if (idx>=0) Object.assign(leads[idx], data);
-  renderLeads();
+  render();
   closeDetail();
 }
 
 function setPage(p) {
+  currentPage = p;
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-  if (p==='leads') renderLeads();
-  else document.getElementById('mainContent').innerHTML = `<div class="page-header"><div><div class="page-title">${p==='overview'?'Vue d\'ensemble':p==='reservations'?'Réservations':'Finances'}</div><div class="page-subtitle">Bientôt disponible</div></div></div><div class="empty-state" style="margin-top:80px">Cette section arrive bientôt</div>`;
+  if(event && event.currentTarget) event.currentTarget.classList.add('active');
+  else document.querySelector(`.nav a[onclick*="${p}"]`)?.classList.add('active');
+  render();
 }
 
 // Init
-loadLeads();
-setInterval(loadLeads, 30000);
+loadAll();
+setInterval(loadAll, 30000);
+setPage('overview');
 </script>
 </body>
 </html>
