@@ -201,7 +201,9 @@ let leads=[],revs=[],deps=[],page='overview',fTemp='all',fStat='all',search='',d
 const hdr={apikey:SK,Authorization:`Bearer ${SK}`};
 async function api(path){const r=await fetch(`${SU}/rest/v1/${path}`,{headers:hdr});return r.json()}
 async function apiDel(table,id){
-  return fetch(`${SU}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:{...hdr,'Content-Type':'application/json','Prefer':'return=minimal'}});
+  const r=await fetch(`${SU}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:{apikey:SK,Authorization:`Bearer ${SK}`,'Prefer':'return=minimal'}});
+  if(!r.ok){const t=await r.text();throw new Error(`${r.status}: ${t}`)}
+  return r;
 }
 
 // Load data
@@ -240,11 +242,12 @@ function askDelete(table,id,desc){
 function closeConfirm(){document.getElementById('confirmModal').classList.remove('show');deleteTarget=null}
 async function confirmDelete(){
   if(!deleteTarget)return;
+  const target={...deleteTarget};
   closeConfirm();
   try{
-    await apiDel(deleteTarget.table,deleteTarget.id);
+    await apiDel(target.table,target.id);
     toast('✅ Transaction supprimée');
-    load();
+    await load();
   }catch(e){toast('❌ Erreur : '+e.message)}
 }
 
