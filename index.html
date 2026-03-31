@@ -145,13 +145,33 @@ textarea.field-input { resize:vertical; min-height:60px; }
 .empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:14px; }
 
 /* Responsive */
+/* Mobile hamburger */
+.mobile-header { display:none; position:fixed; top:0; left:0; right:0; height:56px; background:var(--surface); border-bottom:1px solid var(--border); z-index:20; padding:0 20px; align-items:center; justify-content:space-between; }
+.mobile-header h1 { font-family:var(--serif); font-size:18px; font-weight:400; color:var(--navy); }
+.hamburger { background:none; border:none; cursor:pointer; padding:8px; color:var(--navy); }
+.hamburger svg { width:24px; height:24px; }
+.mobile-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:15; }
+.mobile-overlay.open { display:block; }
+.sidebar.mobile-open { display:flex !important; z-index:25; box-shadow:4px 0 20px rgba(0,0,0,0.1); }
+
 @media (max-width:900px) {
   .sidebar { display:none; }
-  .main { margin-left:0; padding:20px; }
-  .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .mobile-header { display:flex; }
+  .main { margin-left:0; padding:72px 16px 20px; }
+  .kpi-grid { grid-template-columns:repeat(2,1fr); gap:10px; }
+  .kpi-card { padding:14px 16px; }
+  .kpi-value { font-size:28px; }
+  .kpi-label { font-size:9px; }
   .detail-panel { width:100%; }
   .filters { flex-direction:column; align-items:stretch; }
   .search-input { width:100%; }
+  .page-header { flex-direction:column; align-items:flex-start; gap:12px; }
+  .page-title { font-size:24px; }
+  .table-container { overflow-x:auto; }
+  table { min-width:700px; }
+  .overview-grid { grid-template-columns:1fr !important; }
+  .overview-grid > div:last-child .agents-row { grid-template-columns:1fr !important; }
+  .finance-summary { grid-template-columns:1fr !important; }
 }
 
 /* Fade in animation */
@@ -164,6 +184,14 @@ textarea.field-input { resize:vertical; min-height:60px; }
 </style>
 </head>
 <body>
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <h1>Harmonie Yacht</h1>
+  <button class="hamburger" onclick="toggleMobileMenu()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</div>
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileMenu()"></div>
 <div class="app">
   <!-- Sidebar -->
   <aside class="sidebar">
@@ -516,7 +544,15 @@ function setPage(p) {
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
   if(event && event.currentTarget) event.currentTarget.classList.add('active');
   else document.querySelector(`.nav a[onclick*="${p}"]`)?.classList.add('active');
+  // Close mobile menu
+  document.querySelector('.sidebar').classList.remove('mobile-open');
+  document.getElementById('mobileOverlay').classList.remove('open');
   render();
+}
+
+function toggleMobileMenu() {
+  document.querySelector('.sidebar').classList.toggle('mobile-open');
+  document.getElementById('mobileOverlay').classList.toggle('open');
 }
 
 // Init
